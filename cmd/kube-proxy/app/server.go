@@ -486,7 +486,24 @@ func serveMetrics(ctx context.Context, bindAddress string, proxyMode kubeproxyco
 	}
 
 	if utilfeature.DefaultFeatureGate.Enabled(zpagesfeatures.ComponentStatusz) {
-		statusz.Install(proxyMux, kubeProxy, statusz.NewRegistry(compatibility.DefaultBuildEffectiveVersion()))
+		// Collect available endpoints for statusz
+		availableEndpoints := []string{
+			"/healthz",
+			"/livez",
+			"/readyz",
+			"/metrics",
+			"/proxyMode",
+			"/configz",
+		}
+		if enableProfiling {
+			availableEndpoints = append(availableEndpoints, "/debug/pprof/")
+		}
+		if flagzReader != nil {
+			availableEndpoints = append(availableEndpoints, "/debug/flags/")
+		}
+
+		registry := statusz.NewRegistry(compatibility.DefaultBuildEffectiveVersion(), statusz.WithListedPaths(availableEndpoints))
+		statusz.Install(proxyMux, kubeProxy, registry)
 	}
 
 	fn := func() {
